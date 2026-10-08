@@ -19,7 +19,7 @@ def soma():
     try:
         a = float(request.args.get("a"))
         b = float(request.args.get("b"))
-        resultado = a + b
+        resultado = a - b
 
         return jsonify({"resultado": resultado}), 200
     except (TypeError, ValueError):
