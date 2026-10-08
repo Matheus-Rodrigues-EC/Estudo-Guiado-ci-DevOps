@@ -1,0 +1,34 @@
+name: Piepeline CI
+
+on:
+  push:
+    branchs:
+      - main
+    pull-request:
+      branches:
+      - main
+
+jobs:
+buid-and-test:
+  runs-on: ubuntu-latest
+
+  steps:
+    - name: Baixar código
+      uses: actions/checkout@v4
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Instalar dependências
+      run:  pip install -r requirements.txt
+
+    - name: Executar List
+      run: flake8 app.py test_app.py
+
+    - name: Executar Testes
+      run: pytest -v
+
+    - name: Construir imagem Docker
+      run: docker build -t fastorder-api:latest .
