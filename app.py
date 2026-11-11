@@ -14,7 +14,13 @@ def home():
 
 @app.route("/api/status")
 def status():
-    return jsonify({"status": "Operacional", "Serviço": "FastOrder"}), 200
+    return jsonify({
+        "status": "Operacional", 
+        "Serviço": "FastOrder",
+        "flags": {
+            "FEATURE_DESCONTO_PROMO": FEATURE_DESCONTO_PROMO
+        }
+        }), 200
 
 
 @app.route("/api/soma", methods=["GET"])
