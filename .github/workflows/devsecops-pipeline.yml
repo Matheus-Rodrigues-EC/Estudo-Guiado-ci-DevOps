@@ -1,0 +1,98 @@
+
+name: Esteira DevSecOps - FastOrder
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  VERSAO_PYTHON: "3.12"
+  NOME_VERSAO: "1.0.0"
+  ENV_NAME: "producao"
+
+permissions:
+  contents: read
+
+jobs:
+  # JOB 1 - Qualidade e testes
+  lint-and-test:
+    name: 1. Qualidade e Testes Funcionais
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.VERSAO_PYTHON }}
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint com Flake8
+        run: |
+          flake8 app.py test_app.py --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Executar testes Pytest
+        run: pytest -v
+
+  # JOB 2 - Analises de seguranca
+  security-scans:
+    name: 2. Escaneamento de Seguranca
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.VERSAO_PYTHON }}
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Secret Scanning - TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified --fail
+
+      - name: SAST - Bandit
+        run: bandit -r app.py -ll -ii
+
+      - name: SCA - Pip-Audit
+        run: pip-audit -r requirements.txt
+
+  # JOB 3 - Docker e Trivy
+  docker-build-and-scan:
+    name: 3. Build Docker e Scan Trivy
+    needs: [lint-and-test, security-scans]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+
+      - name: Construir imagem Docker
+        run: docker build -t fastorder-api:ci .
+
+      - name: Escanear vulnerabilidades com Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "fastorder-api:ci"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
