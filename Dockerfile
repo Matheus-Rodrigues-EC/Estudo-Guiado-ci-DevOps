@@ -1,6 +1,8 @@
 
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.source="https://github.com/Matheus-Rodrigues-EC/Estudo-Guiado-ci-DevOps"
+
 WORKDIR /app
 
 COPY requirements.txt .

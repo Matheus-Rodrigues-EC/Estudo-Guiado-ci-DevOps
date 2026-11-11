@@ -74,19 +74,26 @@ jobs:
       - name: SCA - Pip-Audit
         run: pip-audit -r requirements.txt
 
-  # JOB 3 - Docker e Trivy
+  
+  # JOB 3 - Docker, Trivy e Publicacao no GHCR
   docker-build-and-scan:
-    name: 3. Build Docker e Scan Trivy
+    name: 3. Build Docker, Scan Trivy e GHCR
     needs: [lint-and-test, security-scans]
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Baixar codigo fonte
         uses: actions/checkout@v7
 
+      # Construir a imagem local
       - name: Construir imagem Docker
         run: docker build -t fastorder-api:ci .
 
+      # Verificar vulnerabilidades antes da publicacao
       - name: Escanear vulnerabilidades com Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -96,3 +103,29 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
+
+      # Autenticar somente em pushes na main
+      - name: Login no GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publicar a mesma imagem aprovada pelo Trivy
+      - name: Publicar imagem no GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          IMAGE="ghcr.io/${REPO_NAME,,}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+
+          docker tag fastorder-api:ci "${IMAGE}:latest"
+          docker tag fastorder-api:ci "${IMAGE}:sha-${SHORT_SHA}"
+
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:sha-${SHORT_SHA}"
+
+          echo "Imagem publicada: ${IMAGE}:latest"
