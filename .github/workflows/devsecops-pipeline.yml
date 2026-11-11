@@ -1,0 +1,131 @@
+
+name: Esteira DevSecOps - FastOrder
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  VERSAO_PYTHON: "3.12"
+  NOME_VERSAO: "1.0.0"
+  ENV_NAME: "producao"
+
+permissions:
+  contents: read
+
+jobs:
+  # JOB 1 - Qualidade e testes
+  lint-and-test:
+    name: 1. Qualidade e Testes Funcionais
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.VERSAO_PYTHON }}
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint com Flake8
+        run: |
+          flake8 app.py test_app.py --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Executar testes Pytest
+        run: pytest -v
+
+  # JOB 2 - Analises de seguranca
+  security-scans:
+    name: 2. Escaneamento de Seguranca
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.VERSAO_PYTHON }}
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Secret Scanning - TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified
+
+      - name: SAST - Bandit
+        run: bandit -r app.py -ll -ii
+
+      - name: SCA - Pip-Audit
+        run: pip-audit -r requirements.txt
+
+  
+  # JOB 3 - Docker, Trivy e Publicacao no GHCR
+  docker-build-and-scan:
+    name: 3. Build Docker, Scan Trivy e GHCR
+    needs: [lint-and-test, security-scans]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Baixar codigo fonte
+        uses: actions/checkout@v7
+
+      # Construir a imagem local
+      - name: Construir imagem Docker
+        run: docker build -t fastorder-api:ci .
+
+      # Verificar vulnerabilidades antes da publicacao
+      - name: Escanear vulnerabilidades com Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "fastorder-api:ci"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
+
+      # Autenticar somente em pushes na main
+      - name: Login no GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publicar a mesma imagem aprovada pelo Trivy
+      - name: Publicar imagem no GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          IMAGE="ghcr.io/${REPO_NAME,,}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+
+          docker tag fastorder-api:ci "${IMAGE}:latest"
+          docker tag fastorder-api:ci "${IMAGE}:sha-${SHORT_SHA}"
+
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:sha-${SHORT_SHA}"
+
+          echo "Imagem publicada: ${IMAGE}:latest"

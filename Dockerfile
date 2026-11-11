@@ -1,9 +1,18 @@
+
 FROM python:3.12-slim
+
+LABEL org.opencontainers.image.source="https://github.com/Matheus-Rodrigues-EC/Estudo-Guiado-ci-DevOps"
 
 WORKDIR /app
 
 COPY requirements.txt .
 
+# Atualizar o pacote vulneravel do Debian
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
