@@ -1,8 +1,11 @@
+import os
+
 from flask import Flask, jsonify, request
 
 
 app = Flask(__name__)
 
+FEATURE_DESCONTO_PROMO = os.getenv("FEATURE_DESCONTO_PROMO", "false").lower() == "true"
 
 @app.route("/")
 def home():
@@ -25,6 +28,27 @@ def soma():
     except (TypeError, ValueError):
         return jsonify({"erro": "Parâmetros inválidos"}), 400
 
+# Nova Rota - Protegida por Feature Flag
+@app.route("/api/desconto")
+def desconto():
+    if not FEATURE_DESCONTO_PROMO:
+        return jsonify({"erro": "Funcionalidade em construção ou desativada temporariamente.",
+                        "flag_status": False}), 403
+    try:
+        valor_total = float(request.args.get('valor', 0))
+        porcentagem = float(request.args.get('porcentagem', 10))
+
+        if valor_total <= 0:
+            return jsonify({"erro": "O valor total deve ser maior que zero."}), 400
+
+        valor_com_desconto = valor_total - (valor_total * (porcentagem / 100))
+        return jsonify({
+            "Valor original": valor_total,
+            "Desconto aplicado (%)": porcentagem,
+            "Valor com desconto": valor_com_desconto
+        })
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Parâmetros de desconto inválidos"}), 400
 
 if __name__ == "__main__":
 
