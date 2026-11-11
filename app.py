@@ -5,7 +5,7 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-FEATURE_DESCONTO_PROMO = os.getenv("FEATURE_DESCONTO_PROMO", "true").lower() == "true"
+FEATURE_DESCONTO_PROMO = os.getenv("FEATURE_DESCONTO_PROMO", "false").lower() == "true"
 
 @app.route("/")
 def home():
