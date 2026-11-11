@@ -1,0 +1,23 @@
+
+# Ambientes virtuais
+venv/
+.venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Git
+.git/
+.github/
+
+# Arquivos de ambiente e segredos
+.env
+.env.*
+*.pem
+*.key
+
+# Relatorios e arquivos temporarios
+.coverage
+htmlcov/
