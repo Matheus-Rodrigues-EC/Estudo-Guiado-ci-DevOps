@@ -5,18 +5,18 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-FEATURE_DESCONTO_PROMO = os.getenv("FEATURE_DESCONTO_PROMO", "false").lower() == "true"
+FEATURE_DESCONTO_PROMO = os.getenv("FEATURE_DESCONTO_PROMO", "true").lower() == "true"
 
 @app.route("/")
 def home():
-    return jsonify({"mensagem": "Bem-vindo à API FastOrder!"}), 200
+    return jsonify({"mensagem": "Bem-vindo a API FastOrder!"}), 200
 
 
 @app.route("/api/status")
 def status():
     return jsonify({
         "status": "Operacional", 
-        "Serviço": "FastOrder",
+        "Servico": "FastOrder",
         "flags": {
             "FEATURE_DESCONTO_PROMO": FEATURE_DESCONTO_PROMO
         }
@@ -38,7 +38,7 @@ def soma():
 @app.route("/api/desconto")
 def desconto():
     if not FEATURE_DESCONTO_PROMO:
-        return jsonify({"erro": "Funcionalidade em construção ou desativada temporariamente.",
+        return jsonify({"erro": "Funcionalidade em construcao ou desativada temporariamente.",
                         "flag_status": False}), 403
     try:
         valor_total = float(request.args.get('valor', 0))
@@ -54,7 +54,7 @@ def desconto():
             "Valor com desconto": valor_com_desconto
         })
     except (TypeError, ValueError):
-        return jsonify({"erro": "Parâmetros de desconto inválidos"}), 400
+        return jsonify({"erro": "Parametros de desconto invalidos"}), 400
 
 if __name__ == "__main__":
 
